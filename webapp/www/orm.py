@@ -1,16 +1,15 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-__author__ = 'Michael Liao'
+__author__ = 'Ethan Lin'
 
-import asyncio, logging
+import asyncio, logging                                          #导入异步IO模块，输出日志模块
 
-import aiomysql
+import aiomysql                                                  #导入mysql数据库的异步IO驱动
 
-def log(sql, args=()):
+def log(sql, args=()):                                           #输出要执行的sql语句
     logging.info('SQL: %s' % sql)
 
-async def create_pool(loop, **kw):
+async def create_pool(loop, **kw):                               #创建连接池，获取数据库连接
     logging.info('create database connection pool...')
     global __pool
     __pool = await aiomysql.create_pool(
@@ -26,20 +25,20 @@ async def create_pool(loop, **kw):
         loop=loop
     )
 
-async def select(sql, args, size=None):
+async def select(sql, args, size=None):                          #执行select语句，传入sql语句和参数
     log(sql, args)
     global __pool
-    async with __pool.get() as conn:
-        async with conn.cursor(aiomysql.DictCursor) as cur:
-            await cur.execute(sql.replace('?', '%s'), args or ())
-            if size:
+    async with __pool.get() as conn:                             #执行__pool.get()里面的__enter__函数，返回值赋给conn，然后执行后面的内容，完成之后执行__pool__中的__exit__函数
+        async with conn.cursor(aiomysql.DictCursor) as cur:       #创建游标
+            await cur.execute(sql.replace('?', '%s'), args or ())  #替换？和%s执行sql语句
+            if size:                                               #如果size有值，获取最多制定数量的记录
                 rs = await cur.fetchmany(size)
-            else:
+            else:                                                  #如果size没值，获取所有记录
                 rs = await cur.fetchall()
         logging.info('rows returned: %s' % len(rs))
-        return rs
+        return rs                                                 #返回查询结果集
 
-async def execute(sql, args, autocommit=True):
+async def execute(sql, args, autocommit=True):                    #执行insert/update/delete语句
     log(sql)
     async with __pool.get() as conn:
         if not autocommit:
@@ -47,14 +46,14 @@ async def execute(sql, args, autocommit=True):
         try:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute(sql.replace('?', '%s'), args)
-                affected = cur.rowcount
+                affected = cur.rowcount                          #影响的行
             if not autocommit:
                 await conn.commit()
         except BaseException as e:
             if not autocommit:
                 await conn.rollback()
             raise
-        return affected
+        return affected                                          #返回影响的行
 
 def create_args_string(num):
     L = []
